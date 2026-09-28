@@ -2,6 +2,10 @@
 
 ÉLANE Luxury Fashion REST API — Node.js & Express MVC backend with Supabase PostgreSQL resilience, JWT authentication, rate limiting, and full e-commerce endpoints.
 
+## Live Deployments
+- **REST API (Render):** [https://shopping-app-backend-bwbb.onrender.com/api](https://shopping-app-backend-bwbb.onrender.com/api)
+- **Frontend Client (Vercel):** [https://shopping-app-frontend-rho.vercel.app](https://shopping-app-frontend-rho.vercel.app)
+
 ## Features
 - **MVC Architecture**: Express routes, controllers, services, middleware, and validators.
 - **Authentication**: Stateless JWT access and refresh tokens, bcrypt password hashing.
