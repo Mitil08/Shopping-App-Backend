@@ -21,24 +21,10 @@ const app = express();
 // Security Headers
 app.use(helmet());
 
-// CORS configuration for frontend
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'https://shopping-app-frontend-rho.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://127.0.0.1:5173',
-].filter(Boolean);
-
+// CORS configuration: Allow all domains dynamically while supporting credentials
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. mobile apps, curl)
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, true); // Allow dev origins seamlessly
-    },
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
