@@ -1,14 +1,16 @@
-// 20+ Premium Editorial Fashion Products for ÉLANE Luxury Brand
+import { expandedCategories, expandedProducts } from './expandedCatalog.js';
+
+// Base Categories plus Mega Amazon/Flipkart Multi-Department Categories
 export const mockCategories = [
+  ...expandedCategories,
   { id: 'cat-tailoring', name: 'Tailoring & Suiting', slug: 'tailoring-suiting', description: 'Impeccable silhouettes cut from virgin wool, linen blends, and structured cottons.' },
   { id: 'cat-knitwear', name: 'Fine Knitwear', slug: 'fine-knitwear', description: 'Sumptuous cashmere, superfine merino wool, and ribbed organic cotton knits.' },
   { id: 'cat-outerwear', name: 'Outerwear', slug: 'outerwear', description: 'Sculptural trench coats, double-faced wool overcoats, and modern utility jackets.' },
   { id: 'cat-shirts', name: 'Shirts & Tops', slug: 'shirts-tops', description: 'Relaxed poplin, fluid silk blends, and minimalist structural tees.' },
   { id: 'cat-trousers', name: 'Trousers & Denim', slug: 'trousers-denim', description: 'Pleated wide-leg trousers, tailored chinos, and raw Japanese selvedge denim.' },
-  { id: 'cat-accessories', name: 'Leather Goods & Accessories', slug: 'leather-accessories', description: 'Full-grain Italian leather bags, minimal cardholders, and brushed brass accessories.' },
 ];
 
-export const mockProducts = [
+export const initialFashionProducts = [
   {
     id: 'prod-1',
     name: 'Atelier Double-Breasted Wool Coat',
@@ -685,3 +687,14 @@ export const mockProducts = [
     ]
   }
 ];
+
+// Scale base fashion pieces to Indian Rupee (INR) luxury pricing to match expanded marketplace products
+const inrFashionProducts = initialFashionProducts.map(p => ({
+  ...p,
+  base_price: p.base_price < 1000 ? Math.round(p.base_price * 70) : p.base_price,
+  sale_price: p.sale_price && p.sale_price < 1000 ? Math.round(p.sale_price * 70) : (p.sale_price || null)
+}));
+
+// Complete Multi-Category Marketplace Catalog (Electronics, Audio, Footwear, Fragrances, Home, Fashion)
+export const mockProducts = [...expandedProducts, ...inrFashionProducts];
+

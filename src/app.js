@@ -13,6 +13,7 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 dotenv.config();
 
@@ -83,6 +84,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 404 & Centralized Error Middleware
 app.use(notFoundMiddleware);

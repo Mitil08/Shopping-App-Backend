@@ -1,10 +1,22 @@
 import bcrypt from 'bcryptjs';
 import { db } from '../config/db.js';
+import supabase from '../config/supabase.js';
 import { generateToken } from '../utils/jwt.js';
 
 export const authService = {
   register: async ({ name, email, password }) => {
-    const existing = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    // 1. Check existing user
+    let existing = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+
+    if (!existing && supabase) {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .maybeSingle();
+      if (data) existing = data;
+    }
+
     if (existing) {
       const err = new Error('An account with this email address already exists.');
       err.statusCode = 400;
@@ -15,7 +27,6 @@ export const authService = {
     const password_hash = await bcrypt.hash(password, salt);
 
     const newUser = {
-      id: `usr-${Date.now().toString(36)}`,
       email: email.toLowerCase(),
       password_hash,
       role: 'customer',
@@ -24,6 +35,30 @@ export const authService = {
       created_at: new Date().toISOString(),
     };
 
+    // 2. Insert into Supabase if connected
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .insert([newUser])
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('Supabase insert notice (falling back to memory):', error.message);
+          newUser.id = `usr-${Date.now().toString(36)}`;
+        } else if (data) {
+          newUser.id = data.id;
+        }
+      } catch (sbErr) {
+        console.warn('Supabase exception:', sbErr.message);
+        newUser.id = `usr-${Date.now().toString(36)}`;
+      }
+    } else {
+      newUser.id = `usr-${Date.now().toString(36)}`;
+    }
+
+    // Always mirror to in-memory store for instant responsiveness
     db.users.push(newUser);
 
     const token = generateToken({
@@ -44,7 +79,24 @@ export const authService = {
   },
 
   login: async ({ email, password }) => {
-    const user = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    let user = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+
+    if (!user && supabase) {
+      try {
+        const { data } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', email.toLowerCase())
+          .maybeSingle();
+        if (data) {
+          user = data;
+          db.users.push(user); // Cache in memory
+        }
+      } catch (sbErr) {
+        console.warn('Supabase fetch error:', sbErr.message);
+      }
+    }
+
     if (!user) {
       const err = new Error('Invalid email or password combination.');
       err.statusCode = 401;
@@ -77,7 +129,17 @@ export const authService = {
   },
 
   getMe: async (userId) => {
-    const user = db.users.find((u) => u.id === userId);
+    let user = db.users.find((u) => u.id === userId);
+
+    if (!user && supabase) {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      if (data) user = data;
+    }
+
     if (!user) {
       const err = new Error('Client profile not found.');
       err.statusCode = 404;
@@ -94,7 +156,7 @@ export const authService = {
   },
 
   updateProfile: async (userId, { name, phone }) => {
-    const user = db.users.find((u) => u.id === userId);
+    let user = db.users.find((u) => u.id === userId);
     if (!user) {
       const err = new Error('Client profile not found.');
       err.statusCode = 404;
@@ -103,6 +165,17 @@ export const authService = {
 
     if (name) user.name = name;
     if (phone !== undefined) user.phone = phone;
+
+    if (supabase) {
+      try {
+        await supabase
+          .from('users')
+          .update({ name: user.name, phone: user.phone, updated_at: new Date().toISOString() })
+          .eq('id', userId);
+      } catch (sbErr) {
+        console.warn('Supabase update profile warning:', sbErr.message);
+      }
+    }
 
     return {
       id: user.id,

@@ -1,4 +1,5 @@
 import { db } from '../config/db.js';
+import { whatsappNotificationService } from './whatsappNotificationService.js';
 
 export const orderService = {
   createOrder: async (userId, orderData) => {
@@ -24,6 +25,18 @@ export const orderService = {
     // If user cart exists, clear it
     if (userId && db.carts[userId]) {
       db.carts[userId] = [];
+    }
+
+    // Trigger automated WhatsApp notification asynchronously
+    try {
+      const phone = orderData.shippingAddress?.phone || orderData.phone;
+      if (phone) {
+        whatsappNotificationService.sendOrderConfirmation(newOrder, phone).catch((err) => {
+          console.warn('[WhatsApp Dispatch Background Error]:', err.message);
+        });
+      }
+    } catch (e) {
+      console.warn('[WhatsApp trigger skipped]:', e.message);
     }
 
     return newOrder;
