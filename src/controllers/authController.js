@@ -48,6 +48,20 @@ export const authController = {
     }
   },
 
+  verifyEmail: async (req, res, next) => {
+    try {
+      const { email } = req.body;
+      const { emailValidatorService } = await import('../services/emailValidatorService.js');
+      const verification = await emailValidatorService.verifyEmailLive(email);
+      if (!verification.isValid) {
+        return errorResponse(res, verification.reason || 'Email address domain could not be verified.', 400);
+      }
+      return successResponse(res, verification, 'Email address domain and mail servers verified successfully.');
+    } catch (err) {
+      next(err);
+    }
+  },
+
   updateProfile: async (req, res, next) => {
     try {
       const updated = await authService.updateProfile(req.user.id, req.body);

@@ -2,9 +2,18 @@ import bcrypt from 'bcryptjs';
 import { db } from '../config/db.js';
 import supabase from '../config/supabase.js';
 import { generateToken } from '../utils/jwt.js';
+import { emailValidatorService } from './emailValidatorService.js';
 
 export const authService = {
   register: async ({ name, email, password }) => {
+    // 0. Live verify email domain and MX mail servers (Google, Microsoft, etc.)
+    const emailVerification = await emailValidatorService.verifyEmailLive(email);
+    if (!emailVerification.isValid) {
+      const err = new Error(emailVerification.reason || 'The provided email address could not be verified with live mail servers.');
+      err.statusCode = 400;
+      throw err;
+    }
+
     // 1. Check existing user
     let existing = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
 
