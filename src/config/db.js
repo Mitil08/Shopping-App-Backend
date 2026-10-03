@@ -5,8 +5,10 @@ import { mockProducts, mockCategories } from '../data/mockProducts.js';
 // Pre-hashed passwords for demo accounts
 // AdminPass123! -> hashed
 // ClientPass123! -> hashed
+// SellerPass123! -> hashed
 const adminPasswordHash = bcrypt.hashSync('AdminPass123!', 10);
 const clientPasswordHash = bcrypt.hashSync('ClientPass123!', 10);
+const sellerPasswordHash = bcrypt.hashSync('SellerPass123!', 10);
 
 export const db = {
   users: [
@@ -27,6 +29,21 @@ export const db = {
       name: 'Genevieve Laurent',
       phone: '+1 (555) 304-8821',
       created_at: new Date('2026-02-14').toISOString(),
+    },
+    {
+      id: 'usr-seller-1',
+      email: 'seller@elane-studio.com',
+      password_hash: sellerPasswordHash,
+      role: 'seller',
+      name: 'Maison Silk Merchants',
+      storeName: 'Maison Silk & Tailoring Co.',
+      gstin: '27AABCM8291Q1Z4',
+      phone: '+91 98765 43210',
+      status: 'active',
+      rating: 4.9,
+      totalSales: 489000,
+      joinedAt: new Date('2025-06-15').toISOString(),
+      created_at: new Date('2025-06-15').toISOString(),
     },
   ],
 

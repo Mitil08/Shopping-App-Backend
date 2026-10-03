@@ -9,7 +9,7 @@ export const authService = {
   /**
    * Generates and dispatches a 6-digit verification OTP to the user's email
    */
-  sendRegistrationOtp: async ({ email, name }) => {
+  sendRegistrationOtp: async ({ email, name, role = 'customer', storeName = '', gstin = '', phone = '' }) => {
     // 1. Live verify email domain and active MX servers
     const emailVerification = await emailValidatorService.verifyEmailLive(email);
     if (!emailVerification.isValid) {
@@ -45,6 +45,11 @@ export const authService = {
       otp: otpCode,
       expiresAt,
       name: name || 'Valued Patron',
+      role: role === 'seller' ? 'seller' : 'customer',
+      storeName: storeName || (role === 'seller' ? `${name}'s Store` : ''),
+      gstin: gstin || '',
+      phone: phone || '',
+      isGoogleAuth: true,
     });
 
     // 4. Send OTP email
@@ -58,9 +63,9 @@ export const authService = {
   },
 
   /**
-   * Verifies the 6-digit OTP code and registers the user account
+   * Verifies the 6-digit OTP code and registers the user account (supports normal & Google SSO signups)
    */
-  verifyOtpAndRegister: async ({ email, otp, password, name }) => {
+  verifyOtpAndRegister: async ({ email, otp, password, name, role, storeName, gstin, phone }) => {
     const cleanEmail = email.toLowerCase().trim();
     const record = db.emailOtps.get(cleanEmail);
 
@@ -86,15 +91,54 @@ export const authService = {
     // OTP verified successfully - remove OTP record
     db.emailOtps.delete(cleanEmail);
 
+    // If user already exists (e.g. logging in via Google OTP)
+    let existing = db.users.find((u) => u.email.toLowerCase() === cleanEmail);
+    if (!existing && supabase) {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+      if (data) existing = data;
+    }
+
+    if (existing) {
+      const token = generateToken({
+        id: existing.id,
+        email: existing.email,
+        role: existing.role,
+        name: existing.name,
+        storeName: existing.storeName,
+      });
+      return {
+        user: {
+          id: existing.id,
+          name: existing.name,
+          email: existing.email,
+          role: existing.role,
+          storeName: existing.storeName,
+          phone: existing.phone || '',
+        },
+        token,
+      };
+    }
+
+    // Generate random secure password hash if signed up via Google SSO without explicit password
+    const finalPassword = password || `GoogleAuth_${Date.now()}_${Math.random().toString(36).slice(-8)}!`;
+
     // Proceed to create account
     return await authService.register({
       name: name || record.name,
       email: cleanEmail,
-      password,
+      password: finalPassword,
+      role: role || record.role || 'customer',
+      storeName: storeName || record.storeName || '',
+      gstin: gstin || record.gstin || '',
+      phone: phone || record.phone || '',
     });
   },
 
-  register: async ({ name, email, password }) => {
+  register: async ({ name, email, password, role = 'customer', storeName = '', gstin = '', phone = '' }) => {
     // 0. Live verify email domain and MX mail servers (Google, Microsoft, etc.)
     const emailVerification = await emailValidatorService.verifyEmailLive(email);
     if (!emailVerification.isValid) {
@@ -127,9 +171,13 @@ export const authService = {
     const newUser = {
       email: email.toLowerCase(),
       password_hash,
-      role: 'customer',
+      role: role === 'seller' ? 'seller' : 'customer',
       name,
-      phone: '',
+      storeName: storeName || (role === 'seller' ? `${name}'s Store` : ''),
+      gstin: gstin || '',
+      phone: phone || '',
+      rating: role === 'seller' ? 5.0 : undefined,
+      totalSales: role === 'seller' ? 0 : undefined,
       created_at: new Date().toISOString(),
     };
 
@@ -164,6 +212,7 @@ export const authService = {
       email: newUser.email,
       role: newUser.role,
       name: newUser.name,
+      storeName: newUser.storeName,
     });
 
     const sanitizedUser = {
@@ -171,6 +220,8 @@ export const authService = {
       name: newUser.name,
       email: newUser.email,
       role: newUser.role,
+      storeName: newUser.storeName,
+      phone: newUser.phone,
     };
 
     return { user: sanitizedUser, token };
