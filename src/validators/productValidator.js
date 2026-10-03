@@ -6,8 +6,8 @@ export const productValidator = [
     .notEmpty()
     .withMessage('Garment name is required'),
   body('base_price')
-    .isFloat({ min: 0.01 })
-    .withMessage('Base price must be a positive number'),
+    .isFloat({ min: 0 })
+    .withMessage('Base price must be a non-negative number'),
   body('description')
     .trim()
     .notEmpty()

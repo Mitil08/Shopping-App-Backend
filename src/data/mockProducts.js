@@ -688,6 +688,41 @@ export const initialFashionProducts = [
   }
 ];
 
+// Complimentary Luxury Gift Product (100% Free)
+export const freeComplimentaryProduct = {
+  id: 'prod-free-atelier-gift',
+  name: 'ÉLANE Signature Scent & Silk Pouch (Complimentary Gift)',
+  slug: 'elane-complimentary-discovery-gift',
+  category_id: 'cat-accessories',
+  categoryName: 'Accessories & Gifts',
+  base_price: 0,
+  sale_price: 0,
+  brand: 'ÉLANE ATELIER',
+  material: '100% Organic Silk & Botanical Essence',
+  description: 'A complimentary luxury introductory gift from ÉLANE Luxury Atelier. Designed to introduce new patrons to our meticulous attention to detail, fabric excellence, and signature gold-stamped finishing. Completely free with zero purchase required.',
+  details: [
+    'Handcrafted with fine edge-stitching in our Porto atelier',
+    'Includes signature ÉLANE engraved gold-tone keepsake seal',
+    'Complimentary doorstep express delivery nationwide',
+    'Zero payment required — 100% complimentary gift'
+  ],
+  care: 'Spot clean with gentle damp cloth.',
+  is_featured: true,
+  is_active: true,
+  is_free: true,
+  rating: 5.0,
+  reviewsCount: 320,
+  images: [
+    'https://images.unsplash.com/photo-1547887537-6158d64c35b3?auto=format&fit=crop&w=1000&q=80',
+    'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=1000&q=80',
+    'https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?auto=format&fit=crop&w=1000&q=80'
+  ],
+  variants: [
+    { id: 'var-free-1', size: 'One Size', color: 'Noir & Gold', colorHex: '#141414', sku: 'ELN-GIFT-FREE-01', stock_quantity: 100 },
+    { id: 'var-free-2', size: 'One Size', color: 'Ivory Silk', colorHex: '#FAF9F5', sku: 'ELN-GIFT-FREE-02', stock_quantity: 85 }
+  ]
+};
+
 // Scale base fashion pieces to Indian Rupee (INR) luxury pricing to match expanded marketplace products
 const inrFashionProducts = initialFashionProducts.map(p => ({
   ...p,
@@ -696,5 +731,6 @@ const inrFashionProducts = initialFashionProducts.map(p => ({
 }));
 
 // Complete Multi-Category Marketplace Catalog (Electronics, Audio, Footwear, Fragrances, Home, Fashion)
-export const mockProducts = [...expandedProducts, ...inrFashionProducts];
+export const mockProducts = [freeComplimentaryProduct, ...expandedProducts, ...inrFashionProducts];
+
 
