@@ -17,6 +17,7 @@ router.post('/', orderValidator, validateRequest, (req, res, next) => {
 
 // Authenticated users order history
 router.get('/', authMiddleware, orderController.getMyOrders);
+router.get('/:id/invoice', orderController.getInvoice);
 router.get('/:id', (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     return authMiddleware(req, res, () => orderController.getOrderById(req, res, next));

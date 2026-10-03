@@ -1,4 +1,5 @@
 import { orderService } from '../services/orderService.js';
+import { emailService } from '../services/emailService.js';
 import { successResponse } from '../utils/responseHandler.js';
 
 export const orderController = {
@@ -29,4 +30,16 @@ export const orderController = {
       next(err);
     }
   },
+
+  getInvoice: async (req, res, next) => {
+    try {
+      const order = await orderService.getOrderById(req.params.id);
+      const invoiceHTML = emailService.generateInvoiceHTML(order);
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(200).send(invoiceHTML);
+    } catch (err) {
+      next(err);
+    }
+  },
 };
+

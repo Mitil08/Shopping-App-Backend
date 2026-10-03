@@ -1,6 +1,7 @@
 import { db } from '../config/db.js';
 import supabase from '../config/supabase.js';
 import { whatsappNotificationService } from './whatsappNotificationService.js';
+import { emailService } from './emailService.js';
 
 export const orderService = {
   createOrder: async (userId, orderData) => {
@@ -10,7 +11,7 @@ export const orderService = {
       id: orderId,
       user_id: userId || null,
       customer: orderData.shippingAddress?.name || 'Private Client',
-      email: orderData.shippingAddress?.email || '',
+      email: orderData.shippingAddress?.email || orderData.email || '',
       items: orderData.items || [],
       shippingAddress: orderData.shippingAddress,
       subtotal: orderData.subtotal,
@@ -43,6 +44,18 @@ export const orderService = {
       }
     } catch (e) {
       console.warn('[WhatsApp trigger skipped]:', e.message);
+    }
+
+    // Trigger automated Email Invoice dispatch asynchronously
+    try {
+      const customerEmail = newOrder.email || orderData.shippingAddress?.email;
+      if (customerEmail) {
+        emailService.sendOrderConfirmation(newOrder, customerEmail).catch((err) => {
+          console.warn('[Email Dispatch Background Error]:', err.message);
+        });
+      }
+    } catch (e) {
+      console.warn('[Email trigger skipped]:', e.message);
     }
 
     return newOrder;

@@ -2,6 +2,27 @@
  * ÉLANE Luxury HTML & PDF Invoice Generator & Email Dispatch Service
  * Generates editorial, high-definition printable invoices with QR verification and tax breakdowns
  */
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+let transporter = null;
+if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  try {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: Number(process.env.SMTP_PORT) === 465,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  } catch (e) {
+    console.warn('⚠️ SMTP Transporter initialization warning:', e.message);
+  }
+}
 
 export const invoiceService = {
   /**
@@ -228,6 +249,29 @@ export const invoiceService = {
 
     const orderId = order.id || 'ELN-MANIFEST';
     const totalFormatted = `₹${Number(order.total || 0).toLocaleString('en-IN')}`;
+    const invoiceHtml = invoiceService.generateHtmlInvoice(order);
+
+    if (transporter) {
+      try {
+        const info = await transporter.sendMail({
+          from: `"ÉLANE Atelier Concierge" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+          to: email,
+          subject: `✨ Maison ÉLANE — Official Tax Invoice #${orderId}`,
+          html: invoiceHtml,
+        });
+        console.log(`✓ Invoice email dispatched via SMTP to ${email} (ID: ${info.messageId})`);
+        return {
+          success: true,
+          recipient: email,
+          orderId,
+          messageId: info.messageId,
+          invoiceUrl: `http://localhost:5000/api/notifications/invoice/${orderId}`,
+          message: 'Luxury tax invoice generated and dispatched to client inbox.',
+        };
+      } catch (err) {
+        console.warn(`⚠️ SMTP dispatch error: ${err.message}. Showing local invoice.`);
+      }
+    }
 
     console.log(`\n======================================================`);
     console.log(`[ÉLANE ATELIER INVOICE DISPATCHED VIA EMAIL]`);
