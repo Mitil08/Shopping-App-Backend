@@ -8,7 +8,8 @@ export const validateRequest = (req, res, next) => {
       field: err.path || err.param,
       message: err.msg,
     }));
-    return errorResponse(res, 'Validation failed for request parameters', 400, formatted);
+    const primaryMessage = formatted[0]?.message || 'Validation failed for request parameters';
+    return errorResponse(res, primaryMessage, 400, formatted);
   }
   next();
 };
