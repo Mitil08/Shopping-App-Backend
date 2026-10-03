@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import razorpay from '../config/razorpay.js';
+import { orderService } from '../services/orderService.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -168,5 +169,105 @@ export const paymentController = {
       success: true,
       key_id: process.env.RAZORPAY_KEY_ID || '',
     });
+  },
+
+  /**
+   * STEP 4: BACKEND - Razorpay Webhook Handler
+   * Endpoint: POST /api/payment/webhook (or POST /api/webhook/razorpay)
+   * Header: x-razorpay-signature
+   * Secret: RAZORPAY_WEBHOOK_SECRET (falls back to RAZORPAY_KEY_SECRET)
+   * Events: payment.captured, order.paid, payment.failed
+   */
+  handleWebhook: async (req, res) => {
+    try {
+      const webhookSignature = req.headers['x-razorpay-signature'];
+      if (!webhookSignature) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing x-razorpay-signature header in webhook delivery.',
+        });
+      }
+
+      const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
+      if (!webhookSecret) {
+        console.error('Neither RAZORPAY_WEBHOOK_SECRET nor RAZORPAY_KEY_SECRET is configured.');
+        return res.status(500).json({
+          success: false,
+          message: 'Webhook secret is not configured on the server.',
+        });
+      }
+
+      // Compute HMAC-SHA256 signature using the raw body buffer if available
+      const rawPayload = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
+      const expectedSignature = crypto
+        .createHmac('sha256', webhookSecret)
+        .update(rawPayload)
+        .digest('hex');
+
+      if (expectedSignature !== webhookSignature) {
+        console.warn('⚠️ Razorpay webhook signature validation failed. Payload rejected.');
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid webhook signature. Security verification failed.',
+        });
+      }
+
+      const event = req.body?.event;
+      const payload = req.body?.payload;
+
+      console.log(`[Razorpay Webhook Verified]: Event "${event}" received.`);
+
+      switch (event) {
+        case 'payment.captured': {
+          const paymentEntity = payload?.payment?.entity;
+          const razorpayOrderId = paymentEntity?.order_id;
+          const paymentId = paymentEntity?.id;
+
+          if (razorpayOrderId) {
+            await orderService.markOrderPaidByRazorpay(razorpayOrderId, paymentId, paymentEntity);
+            console.log(`✓ Webhook: Order ${razorpayOrderId} confirmed & paid via payment ${paymentId}`);
+          }
+          break;
+        }
+
+        case 'order.paid': {
+          const orderEntity = payload?.order?.entity;
+          const razorpayOrderId = orderEntity?.id;
+          const paymentEntity = payload?.payment?.entity;
+          const paymentId = paymentEntity?.id || `PAY-${Date.now()}`;
+
+          if (razorpayOrderId) {
+            await orderService.markOrderPaidByRazorpay(razorpayOrderId, paymentId, orderEntity);
+            console.log(`✓ Webhook: Order ${razorpayOrderId} marked as PAID`);
+          }
+          break;
+        }
+
+        case 'payment.failed': {
+          const paymentEntity = payload?.payment?.entity;
+          const razorpayOrderId = paymentEntity?.order_id;
+          const reason = paymentEntity?.error_description || 'Transaction declined by issuer bank';
+
+          if (razorpayOrderId) {
+            await orderService.markOrderFailedByRazorpay(razorpayOrderId, reason);
+            console.warn(`⚠️ Webhook: Order ${razorpayOrderId} payment failed: ${reason}`);
+          }
+          break;
+        }
+
+        default:
+          console.log(`[Razorpay Webhook]: Ignored non-actionable event "${event}"`);
+      }
+
+      // Acknowledge receipt with 200 OK so Razorpay ceases webhook retries
+      return res.status(200).json({ status: 'ok', eventReceived: event });
+    } catch (err) {
+      console.error('Unhandled Razorpay webhook processing error:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error processing webhook event',
+        error: err.message,
+      });
+    }
   },
 };

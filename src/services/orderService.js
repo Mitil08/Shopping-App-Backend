@@ -1,4 +1,5 @@
 import { db } from '../config/db.js';
+import supabase from '../config/supabase.js';
 import { whatsappNotificationService } from './whatsappNotificationService.js';
 
 export const orderService = {
@@ -16,6 +17,11 @@ export const orderService = {
       discount: orderData.discount || 0,
       shippingCost: orderData.shippingCost || 0,
       total: orderData.total,
+      paymentMethod: orderData.paymentMethod || 'razorpay',
+      paymentId: orderData.paymentId || null,
+      razorpayOrderId: orderData.razorpayOrderId || null,
+      razorpaySignature: orderData.razorpaySignature || null,
+      paymentStatus: orderData.paymentStatus || (orderData.paymentMethod === 'cod' ? 'PENDING' : 'PAID'),
       status: 'Confirmed',
       createdAt: new Date().toISOString(),
     };
@@ -40,6 +46,57 @@ export const orderService = {
     }
 
     return newOrder;
+  },
+
+  markOrderPaidByRazorpay: async (razorpayOrderId, paymentId, paymentData = {}) => {
+    let order = db.orders.find(
+      (o) => o.razorpayOrderId === razorpayOrderId || o.id === razorpayOrderId
+    );
+
+    if (order) {
+      order.paymentStatus = 'PAID';
+      order.status = 'Confirmed';
+      order.paymentId = paymentId;
+      order.updatedAt = new Date().toISOString();
+      return order;
+    }
+
+    if (supabase) {
+      try {
+        const { data } = await supabase
+          .from('orders')
+          .update({
+            payment_status: 'PAID',
+            status: 'Confirmed',
+            payment_id: paymentId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('razorpay_order_id', razorpayOrderId)
+          .select()
+          .maybeSingle();
+
+        if (data) return data;
+      } catch (err) {
+        console.warn('[Supabase Webhook Order Update]:', err.message);
+      }
+    }
+
+    return null;
+  },
+
+  markOrderFailedByRazorpay: async (razorpayOrderId, reason = 'Payment failed') => {
+    let order = db.orders.find(
+      (o) => o.razorpayOrderId === razorpayOrderId || o.id === razorpayOrderId
+    );
+
+    if (order) {
+      order.paymentStatus = 'FAILED';
+      order.failReason = reason;
+      order.updatedAt = new Date().toISOString();
+      return order;
+    }
+
+    return null;
   },
 
   getUserOrders: async (userId) => {
@@ -68,3 +125,4 @@ export const orderService = {
     return order;
   },
 };
+
