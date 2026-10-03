@@ -62,6 +62,31 @@ export const authController = {
     }
   },
 
+  sendOtp: async (req, res, next) => {
+    try {
+      const result = await authService.sendRegistrationOtp(req.body);
+      return successResponse(res, result, result.message);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  verifyOtpAndRegister: async (req, res, next) => {
+    try {
+      const result = await authService.verifyOtpAndRegister(req.body);
+      // Set secure HTTP-only cookie
+      res.cookie('elane_token', result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+      return successResponse(res, result, 'Email verified & account activated successfully', 201);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   updateProfile: async (req, res, next) => {
     try {
       const updated = await authService.updateProfile(req.user.id, req.body);

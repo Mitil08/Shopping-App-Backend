@@ -8,6 +8,8 @@ import { validateRequest } from '../middleware/validationMiddleware.js';
 const router = Router();
 
 router.post('/register', authLimiter, registerValidator, validateRequest, authController.register);
+router.post('/send-otp', authLimiter, authController.sendOtp);
+router.post('/verify-otp', authLimiter, authController.verifyOtpAndRegister);
 router.post('/login', authLimiter, loginValidator, validateRequest, authController.login);
 router.post('/verify-email', authLimiter, authController.verifyEmail);
 router.post('/logout', authController.logout);

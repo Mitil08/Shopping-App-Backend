@@ -271,4 +271,77 @@ export const emailService = {
       };
     }
   },
+
+  /**
+   * Dispatches luxury styled 6-digit email verification OTP
+   */
+  sendRegistrationOtp: async (recipientEmail, otpCode, clientName = 'Valued Patron') => {
+    if (!recipientEmail) {
+      return { success: false, message: 'Recipient email required' };
+    }
+
+    const subject = `✨ ${otpCode} is your ÉLANE Atelier Verification Code`;
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ÉLANE Atelier Verification Code</title>
+</head>
+<body style="margin: 0; padding: 32px 16px; background-color: #FAF8F5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #141414;">
+  <div style="max-width: 540px; margin: 0 auto; background-color: #FFFFFF; border: 1px solid #E8E6E1; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.04);">
+    <div style="height: 4px; background: linear-gradient(90deg, #141414 0%, #C2A676 50%, #141414 100%);"></div>
+    <div style="padding: 36px 32px; text-align: center;">
+      <h2 style="font-family: 'Playfair Display', Georgia, serif; font-size: 24px; margin: 0 0 8px 0; letter-spacing: 0.15em; text-transform: uppercase;">ÉLANE</h2>
+      <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #8C6D2D; margin: 0 0 24px 0; font-weight: 700;">Atelier Client Authentication</p>
+      
+      <p style="font-size: 14px; color: #555; margin: 0 0 24px 0; line-height: 1.6;">
+        Dear ${clientName},<br>
+        Please use the following 6-digit verification code to confirm your email address and activate your ÉLANE Atelier account.
+      </p>
+
+      <div style="margin: 32px 0; padding: 20px; background-color: #FAF8F5; border: 1px dashed #C2A676; border-radius: 6px; display: inline-block;">
+        <span style="font-family: monospace; font-size: 36px; font-weight: 700; letter-spacing: 0.35em; color: #141414; padding-left: 0.35em;">${otpCode}</span>
+      </div>
+
+      <p style="font-size: 12px; color: #888; margin: 0 0 8px 0;">This security code will expire in <strong>10 minutes</strong>.</p>
+      <p style="font-size: 11px; color: #aaa; margin: 0;">If you did not initiate this request, you can safely ignore this email.</p>
+    </div>
+    <div style="padding: 16px; background-color: #141414; color: #C2A676; text-align: center; font-size: 11px; letter-spacing: 0.05em;">
+      ÉLANE Atelier • Defined by Restraint &amp; Longevity
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    if (transporter) {
+      try {
+        const info = await transporter.sendMail({
+          from: `"ÉLANE Atelier Security" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+          to: recipientEmail,
+          subject,
+          html: htmlContent,
+        });
+        console.log(`✓ Verification OTP email dispatched to ${recipientEmail} (ID: ${info.messageId})`);
+        return { success: true, messageId: info.messageId };
+      } catch (err) {
+        console.warn(`⚠️ SMTP dispatch notice (${err.message}). Logging OTP to console.`);
+      }
+    }
+
+    // Always log OTP to server terminal for instant frictionless verification
+    console.log(`\n======================================================`);
+    console.log(`[ÉLANE ATELIER EMAIL VERIFICATION OTP CODE]`);
+    console.log(`Recipient: ${recipientEmail}`);
+    console.log(`6-Digit OTP Code: >>  ${otpCode}  <<`);
+    console.log(`Expires in: 10 Minutes`);
+    console.log(`======================================================\n`);
+
+    return {
+      success: true,
+      mock: true,
+      otp: otpCode,
+    };
+  },
 };

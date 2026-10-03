@@ -33,6 +33,7 @@ export const db = {
   categories: [...mockCategories],
   products: [...mockProducts],
   carts: {},
+  emailOtps: new Map(), // email -> { otp, expiresAt, name, password_hash }
 
   wishlists: {},
   orders: [
