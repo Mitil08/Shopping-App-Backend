@@ -3,21 +3,36 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Create reusable transporter if SMTP credentials are provided
+// Create reusable transporter if SMTP or SendGrid credentials are provided
 let transporter = null;
 
-if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+const sendGridKey = process.env.SENDGRID_API_KEY || (process.env.SMTP_USER === 'apikey' ? process.env.SMTP_PASS : null);
+
+if (sendGridKey || (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)) {
   try {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-    console.log('✓ Nodemailer SMTP transporter initialized successfully');
+    if (sendGridKey || process.env.SMTP_HOST === 'smtp.sendgrid.net') {
+      transporter = nodemailer.createTransport({
+        host: 'smtp.sendgrid.net',
+        port: 587,
+        secure: false, // TLS
+        auth: {
+          user: 'apikey', // SendGrid required username
+          pass: sendGridKey || process.env.SMTP_PASS,
+        },
+      });
+      console.log('✓ SendGrid SMTP Transporter initialized successfully');
+    } else {
+      transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: Number(process.env.SMTP_PORT) === 465,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+      console.log('✓ Nodemailer SMTP transporter initialized successfully');
+    }
   } catch (err) {
     console.warn('⚠️ SMTP Transporter configuration warning:', err.message);
   }
@@ -241,10 +256,12 @@ export const emailService = {
     const htmlContent = emailService.generateInvoiceHTML(order);
     const subject = `✨ Maison ÉLANE — Acquisition Invoice #${order.id} Confirmed`;
 
-    if (transporter) {
+    const senderFrom = process.env.SENDGRID_SENDER_EMAIL || process.env.SMTP_FROM || process.env.SMTP_USER;
+
+    if (transporter && senderFrom) {
       try {
         const info = await transporter.sendMail({
-          from: `"ÉLANE Atelier Concierge" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+          from: `"ÉLANE Atelier Concierge" <${senderFrom}>`,
           to: email,
           subject,
           html: htmlContent,
@@ -315,10 +332,12 @@ export const emailService = {
 </html>
     `;
 
-    if (transporter) {
+    const senderFrom = process.env.SENDGRID_SENDER_EMAIL || process.env.SMTP_FROM || process.env.SMTP_USER;
+
+    if (transporter && senderFrom) {
       try {
         const info = await transporter.sendMail({
-          from: `"ÉLANE Atelier Security" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+          from: `"ÉLANE Atelier Security" <${senderFrom}>`,
           to: recipientEmail,
           subject,
           html: htmlContent,
