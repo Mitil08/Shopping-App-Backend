@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 /**
  * ÉLANE WhatsApp Dispatch & Meta/Twilio Cloud Notification Service
  * Dispatches automated, elegant acquisition confirmations and shipping updates to clients
@@ -196,7 +199,11 @@ _ÉLANE Atelier — Defined by Restraint & Longevity_`
         });
         const data = await res.json();
         console.log(`[WhatsApp Twilio API] Dispatched to ${formattedTo}:`, data?.sid || data);
-        return { success: true, provider: 'twilio', response: data };
+        if (data?.sid) {
+          return { success: true, provider: 'twilio', sid: data.sid, to: formattedTo };
+        } else {
+          console.warn(`[Twilio Sandbox Notice]: ${data?.message || 'Meta 24h window closed'}`);
+        }
       } catch (err) {
         console.error('[WhatsApp Twilio API Error]:', err.message);
       }
