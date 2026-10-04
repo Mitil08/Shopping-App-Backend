@@ -17,6 +17,10 @@ import sellerRoutes from './routes/sellerRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import newsletterRoutes from './routes/newsletterRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import shippingRoutes from './routes/shippingRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
+import loyaltyRoutes from './routes/loyaltyRoutes.js';
+import automationRoutes from './routes/automationRoutes.js';
 
 dotenv.config();
 
@@ -98,6 +102,10 @@ app.use('/api/seller', sellerRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/shipping', shippingRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/loyalty', loyaltyRoutes);
+app.use('/api/automation', automationRoutes);
 app.use('/api', paymentRoutes);
 
 // 404 & Centralized Error Middleware

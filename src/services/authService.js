@@ -4,6 +4,7 @@ import supabase from '../config/supabase.js';
 import { generateToken } from '../utils/jwt.js';
 import { emailValidatorService } from './emailValidatorService.js';
 import { emailService } from './emailService.js';
+import { shippingService } from './shippingService.js';
 
 export const authService = {
   /**
@@ -206,6 +207,23 @@ export const authService = {
 
     // Always mirror to in-memory store for instant responsiveness
     db.users.push(newUser);
+
+    // If a seller registered, automatically register their shop as a Delhivery Pickup Location
+    if (newUser.role === 'seller') {
+      try {
+        shippingService.registerVendorPickupLocation({
+          id: newUser.id,
+          shop_name: newUser.storeName || `${newUser.name}'s Atelier`,
+          business_name: newUser.storeName || newUser.name,
+          phone: newUser.phone,
+          email: newUser.email,
+        }).catch((err) => {
+          console.warn('[Delhivery Seller Registration Hook Warning]:', err.message);
+        });
+      } catch (e) {
+        console.warn('[Delhivery Seller Hook Skipped]:', e.message);
+      }
+    }
 
     const token = generateToken({
       id: newUser.id,

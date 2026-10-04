@@ -1,11 +1,12 @@
 import { db } from '../config/db.js';
+import { abandonedCartService } from './abandonedCartService.js';
 
 export const cartService = {
   getCart: async (userId) => {
     return { items: db.carts[userId] || [] };
   },
 
-  addItem: async (userId, { productId, variantId, quantity = 1 }) => {
+  addItem: async (userId, { productId, variantId, quantity = 1 }, customerInfo = {}) => {
     if (!db.carts[userId]) db.carts[userId] = [];
 
     const product = db.products.find((p) => p.id === productId);
@@ -36,6 +37,13 @@ export const cartService = {
       });
     }
 
+    // Track cart activity for Abandoned Cart recovery engine
+    try {
+      abandonedCartService.trackCartActivity(userId, db.carts[userId], customerInfo);
+    } catch (e) {
+      // non-blocking
+    }
+
     return { items: db.carts[userId] };
   },
 
@@ -58,7 +66,7 @@ export const cartService = {
     return { items: db.carts[userId] };
   },
 
-  syncCart: async (userId, guestItems = []) => {
+  syncCart: async (userId, guestItems = [], customerInfo = {}) => {
     if (!db.carts[userId]) db.carts[userId] = [];
 
     // Intelligently merge guest items with user's cart
@@ -70,6 +78,10 @@ export const cartService = {
         db.carts[userId].push(guestItem);
       }
     }
+
+    try {
+      abandonedCartService.trackCartActivity(userId, db.carts[userId], customerInfo);
+    } catch (e) {}
 
     return { items: db.carts[userId] };
   },

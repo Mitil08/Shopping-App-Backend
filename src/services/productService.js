@@ -1,4 +1,5 @@
 import { db } from '../config/db.js';
+import { wishlistAlertService } from './wishlistAlertService.js';
 
 export const productService = {
   getProducts: async (filters = {}) => {
@@ -188,11 +189,23 @@ export const productService = {
       throw err;
     }
 
+    const previousProduct = { ...db.products[index] };
+    const oldPrice = previousProduct.sale_price || previousProduct.base_price;
+
     db.products[index] = {
       ...db.products[index],
       ...updateData,
       updated_at: new Date().toISOString(),
     };
+
+    const newPrice = db.products[index].sale_price || db.products[index].base_price;
+    if (newPrice < oldPrice) {
+      try {
+        wishlistAlertService.notifyPriceDrop(id, oldPrice, newPrice).catch((err) => {
+          console.warn('[Price Drop Alert Error]:', err.message);
+        });
+      } catch (e) {}
+    }
 
     return db.products[index];
   },

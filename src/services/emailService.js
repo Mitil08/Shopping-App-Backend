@@ -363,4 +363,33 @@ export const emailService = {
       otp: otpCode,
     };
   },
+
+  /**
+   * Generic custom HTML email sender (used for Review Invitations & Customer alerts)
+   */
+  sendCustomEmail: async (recipientEmail, subject, htmlContent) => {
+    if (!recipientEmail) return { success: false, reason: 'NO_RECIPIENT' };
+
+    const senderFrom = process.env.SENDGRID_SENDER_EMAIL || process.env.SMTP_FROM || process.env.SMTP_USER;
+
+    if (transporter && senderFrom) {
+      try {
+        const info = await transporter.sendMail({
+          from: `"ÉLANE Atelier Concierge" <${senderFrom}>`,
+          to: recipientEmail,
+          subject,
+          html: htmlContent,
+        });
+        console.log(`✓ Email dispatched to ${recipientEmail} (ID: ${info.messageId})`);
+        return { success: true, messageId: info.messageId };
+      } catch (err) {
+        console.warn(`⚠️ SendGrid dispatch error (${err.message}).`);
+        return { success: false, error: err.message };
+      }
+    }
+
+    console.log(`[Email Dispatched]: To: ${recipientEmail} | Subject: ${subject}`);
+    return { success: true, mock: true };
+  },
 };
+

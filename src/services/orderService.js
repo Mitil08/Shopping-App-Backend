@@ -2,6 +2,9 @@ import { db } from '../config/db.js';
 import supabase from '../config/supabase.js';
 import { whatsappNotificationService } from './whatsappNotificationService.js';
 import { emailService } from './emailService.js';
+import { shippingService } from './shippingService.js';
+import { inventoryService } from './inventoryService.js';
+import { abandonedCartService } from './abandonedCartService.js';
 
 export const orderService = {
   createOrder: async (userId, orderData) => {
@@ -32,6 +35,31 @@ export const orderService = {
     // If user cart exists, clear it
     if (userId && db.carts[userId]) {
       db.carts[userId] = [];
+    }
+
+    // Trigger automated Inventory Sync & Stock Depletion asynchronously
+    try {
+      inventoryService.decrementStockOnOrder(newOrder).catch((err) => {
+        console.warn('[Inventory Sync Background Warning]:', err.message);
+      });
+    } catch (e) {
+      console.warn('[Inventory decrement skipped]:', e.message);
+    }
+
+    // Mark cart as recovered in Abandoned Cart Tracker
+    try {
+      abandonedCartService.markCartRecovered(userId, newOrder.email);
+    } catch (e) {
+      console.warn('[Abandoned Cart Recovery Mark Skipped]:', e.message);
+    }
+
+    // Trigger automated 3PL courier manifest & AWB generation asynchronously
+    try {
+      shippingService.autoDispatchShipment(newOrder).catch((err) => {
+        console.warn('[3PL Shipping Auto-Dispatch Warning]:', err.message);
+      });
+    } catch (e) {
+      console.warn('[3PL trigger skipped]:', e.message);
     }
 
     // Trigger automated WhatsApp notification asynchronously

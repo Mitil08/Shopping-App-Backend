@@ -12,5 +12,8 @@ router.get('/dashboard', sellerController.getDashboard);
 router.get('/products', sellerController.getProducts);
 router.get('/orders', sellerController.getOrders);
 router.put('/orders/:id/status', sellerController.updateFulfillmentStatus);
+router.post('/products/restock', sellerController.restockProduct);
+router.get('/settlements', sellerController.getSettlements);
+router.post('/settlements/generate', sellerController.generateSettlement);
 
 export default router;

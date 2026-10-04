@@ -22,6 +22,7 @@ const router = Router();
 
 router.post('/create-order', paymentController.createOrder);
 router.post('/verify-payment', paymentController.verifyPayment);
+router.post('/refund', paymentController.refundPayment);
 router.post('/webhook', paymentController.handleWebhook);
 router.post('/webhook/razorpay', paymentController.handleWebhook);
 router.get('/key-id', paymentController.getKeyId);

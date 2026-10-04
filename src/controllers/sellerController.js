@@ -38,4 +38,35 @@ export const sellerController = {
       next(err);
     }
   },
+
+  restockProduct: async (req, res, next) => {
+    try {
+      const { productId, variantId, quantity = 10 } = req.body;
+      const { inventoryService } = await import('../services/inventoryService.js');
+      const data = await inventoryService.restockProduct(productId, variantId, quantity);
+      return successResponse(res, data, `Restocked +${quantity} units successfully`);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  getSettlements: async (req, res, next) => {
+    try {
+      const { vendorSettlementService } = await import('../services/vendorSettlementService.js');
+      const data = vendorSettlementService.getSettlements(req.user.id);
+      return successResponse(res, data);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  generateSettlement: async (req, res, next) => {
+    try {
+      const { vendorSettlementService } = await import('../services/vendorSettlementService.js');
+      const data = await vendorSettlementService.generateSettlement(req.user.id, req.body.period);
+      return successResponse(res, data, 'Settlement statement generated');
+    } catch (err) {
+      next(err);
+    }
+  },
 };
