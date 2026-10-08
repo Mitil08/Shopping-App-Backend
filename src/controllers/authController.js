@@ -95,4 +95,19 @@ export const authController = {
       next(err);
     }
   },
+
+  googleLogin: async (req, res, next) => {
+    try {
+      const result = await authService.loginWithGoogle(req.body);
+      res.cookie('elane_token', result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+      return successResponse(res, result, 'Signed in with Google successfully');
+    } catch (err) {
+      next(err);
+    }
+  },
 };

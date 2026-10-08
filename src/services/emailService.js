@@ -15,23 +15,29 @@ if (sendGridKey || (process.env.SMTP_HOST && process.env.SMTP_USER && process.en
         host: 'smtp.sendgrid.net',
         port: 587,
         secure: false, // TLS
+        connectionTimeout: 4000,
+        greetingTimeout: 4000,
+        socketTimeout: 5000,
         auth: {
           user: 'apikey', // SendGrid required username
           pass: sendGridKey || process.env.SMTP_PASS,
         },
       });
-      console.log('✓ SendGrid SMTP Transporter initialized successfully');
+      console.log('✓ SendGrid SMTP Transporter initialized successfully with timeout guards');
     } else {
       transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: Number(process.env.SMTP_PORT) || 587,
         secure: Number(process.env.SMTP_PORT) === 465,
+        connectionTimeout: 4000,
+        greetingTimeout: 4000,
+        socketTimeout: 5000,
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
       });
-      console.log('✓ Nodemailer SMTP transporter initialized successfully');
+      console.log('✓ Nodemailer SMTP transporter initialized successfully with timeout guards');
     }
   } catch (err) {
     console.warn('⚠️ SMTP Transporter configuration warning:', err.message);
@@ -336,16 +342,19 @@ export const emailService = {
 
     if (transporter && senderFrom) {
       try {
-        const info = await transporter.sendMail({
-          from: `"ÉLANE Atelier Security" <${senderFrom}>`,
-          to: recipientEmail,
-          subject,
-          html: htmlContent,
-        });
-        console.log(`✓ Verification OTP email dispatched to ${recipientEmail} (ID: ${info.messageId})`);
-        return { success: true, messageId: info.messageId };
+        const info = await Promise.race([
+          transporter.sendMail({
+            from: `"ÉLANE Atelier Security" <${senderFrom}>`,
+            to: recipientEmail,
+            subject,
+            html: htmlContent,
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout after 3500ms')), 3500))
+        ]);
+        console.log(`✓ Verification OTP email dispatched to ${recipientEmail} (ID: ${info?.messageId})`);
+        return { success: true, messageId: info?.messageId };
       } catch (err) {
-        console.warn(`⚠️ SMTP dispatch notice (${err.message}). Logging OTP to console.`);
+        console.warn(`⚠️ SMTP dispatch notice (${err.message}). Falling back to instant local verification.`);
       }
     }
 

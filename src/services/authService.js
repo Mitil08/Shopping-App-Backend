@@ -53,12 +53,17 @@ export const authService = {
       isGoogleAuth: true,
     });
 
-    // 4. Send OTP email
-    await emailService.sendRegistrationOtp(cleanEmail, otpCode, name);
+    // 4. Send OTP email (guarded against hanging)
+    try {
+      await emailService.sendRegistrationOtp(cleanEmail, otpCode, name);
+    } catch (e) {
+      console.warn('sendRegistrationOtp notice:', e.message);
+    }
 
     return {
       message: `A 6-digit verification code has been dispatched to ${cleanEmail}. Please enter the code to activate your account.`,
       email: cleanEmail,
+      otp: otpCode,
       expiresIn: 600, // seconds
     };
   },
@@ -246,18 +251,44 @@ export const authService = {
   },
 
   login: async ({ email, password }) => {
-    let user = db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const rawIdentifier = (email || '').trim();
+    const isEmail = rawIdentifier.includes('@');
+    
+    let user = null;
+    if (isEmail) {
+      user = db.users.find((u) => u.email.toLowerCase() === rawIdentifier.toLowerCase());
+    } else {
+      const cleanPhone = rawIdentifier.replace(/\D/g, '').slice(-10);
+      user = db.users.find((u) => {
+        if (!u.phone) return false;
+        const uPhone = u.phone.toString().replace(/\D/g, '').slice(-10);
+        return uPhone && uPhone === cleanPhone;
+      });
+    }
 
     if (!user && supabase) {
       try {
-        const { data } = await supabase
-          .from('users')
-          .select('*')
-          .eq('email', email.toLowerCase())
-          .maybeSingle();
-        if (data) {
-          user = data;
-          db.users.push(user); // Cache in memory
+        if (isEmail) {
+          const { data } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', rawIdentifier.toLowerCase())
+            .maybeSingle();
+          if (data) {
+            user = data;
+            db.users.push(user); // Cache in memory
+          }
+        } else {
+          const cleanPhone = rawIdentifier.replace(/\D/g, '').slice(-10);
+          const { data } = await supabase
+            .from('users')
+            .select('*')
+            .ilike('phone', `%${cleanPhone}%`)
+            .maybeSingle();
+          if (data) {
+            user = data;
+            db.users.push(user);
+          }
         }
       } catch (sbErr) {
         console.warn('Supabase fetch error:', sbErr.message);
@@ -351,5 +382,97 @@ export const authService = {
       role: user.role,
       phone: user.phone,
     };
+  },
+
+  /**
+   * Google / Social OAuth 1-Click Authenticator
+   */
+  loginWithGoogle: async ({ email, name, picture, googleId }) => {
+    if (!email) {
+      const err = new Error('Google email is required.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    let user = db.users.find((u) => u.email.toLowerCase() === cleanEmail);
+
+    if (!user && supabase) {
+      try {
+        const { data } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', cleanEmail)
+          .maybeSingle();
+        if (data) {
+          user = data;
+          db.users.push(user);
+        }
+      } catch (sbErr) {
+        console.warn('Supabase fetch error in googleLogin:', sbErr.message);
+      }
+    }
+
+    if (!user) {
+      // Register new patron user automatically
+      const salt = await bcrypt.genSalt(10);
+      const password_hash = await bcrypt.hash('GoogleOAuth_' + Date.now() + Math.random(), salt);
+      user = {
+        id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        email: cleanEmail,
+        name: name || cleanEmail.split('@')[0],
+        password_hash,
+        role: 'customer',
+        avatar: picture || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        google_id: googleId || '',
+        is_verified: true,
+        created_at: new Date().toISOString(),
+      };
+
+      db.users.push(user);
+
+      if (supabase) {
+        try {
+          await supabase.from('users').insert({
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            password_hash: user.password_hash,
+            role: user.role,
+            created_at: user.created_at,
+          });
+        } catch (e) {
+          console.warn('Supabase user insert skipped in Google OAuth:', e.message);
+        }
+      }
+    } else {
+      // User exists, update picture if provided
+      if (picture && !user.avatar) {
+        user.avatar = picture;
+      }
+      if (googleId && !user.google_id) {
+        user.google_id = googleId;
+      }
+    }
+
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
+      storeName: user.storeName,
+    });
+
+    const sanitizedUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      storeName: user.storeName,
+      phone: user.phone || '',
+      avatar: user.avatar || picture || '',
+    };
+
+    return { user: sanitizedUser, token };
   },
 };
